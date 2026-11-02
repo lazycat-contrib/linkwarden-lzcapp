@@ -1,6 +1,6 @@
 package: community.lazycat.app.linkwarden
 name: Linkwarden
-version: 2.16.3
+version: 0.0.0
 description: "Collaborative bookmark manager that archives pages, screenshots them and keeps them searchable."
 min_os_version: "1.5.0"
 homepage: https://github.com/linkwarden/linkwarden
