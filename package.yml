@@ -1,0 +1,18 @@
+package: community.lazycat.app.linkwarden
+name: Linkwarden
+version: 0.0.0
+description: "Collaborative bookmark manager that archives pages, screenshots them and keeps them searchable."
+min_os_version: "1.5.0"
+homepage: https://github.com/linkwarden/linkwarden
+author: linkwarden
+license: AGPL-3.0
+permissions:
+  required:
+    - net.internet
+locales:
+  zh:
+    name: Linkwarden
+    description: "协作式书签管理：收藏链接时自动存档网页快照和截图，避免链接失效，支持标签、检索和团队共享。"
+  en:
+    name: Linkwarden
+    description: "Collaborative bookmark manager that archives pages, screenshots them and keeps them searchable."

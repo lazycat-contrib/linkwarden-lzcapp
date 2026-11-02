@@ -1,0 +1,88 @@
+application:
+  subdomain: linkwarden
+  multi_instance: false
+  upstreams:
+    - location: /package-licenses/
+      backend: file:///lzcapp/pkg/content/licenses/
+    - location: /
+      backend: http://linkwarden:3000/
+
+services:
+  db:
+    image: docker.1ms.run/library/postgres:16-alpine
+    environment:
+      - POSTGRES_PASSWORD={{ stable_secret "linkwarden_db_password" | replace "\r" "" | replace "\n" "" }}
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    binds:
+      - /lzcapp/var/pgdata:/var/lib/postgresql/data
+
+  meilisearch:
+    image: docker.1ms.run/getmeili/meilisearch:v1.13.3
+    environment:
+      - MEILI_NO_ANALYTICS=true
+      - |-
+        MEILI_MASTER_KEY={{ stable_secret "linkwarden_meili_key" | replace "\r" "" | replace "\n" "" }}
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://127.0.0.1:7700/health
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    binds:
+      - /lzcapp/var/meili:/meili_data
+
+  linkwarden:
+    # upstream: ghcr.io/linkwarden/linkwarden:v2.16.3
+    image: docker.1ms.run/ghcr.io/linkwarden/linkwarden:v2.16.3
+    depends_on:
+      - db
+      - meilisearch
+    environment:
+      - |-
+        NEXTAUTH_URL=https://{{ .S.AppDomain }}/api/v1/auth
+      - |-
+        NEXTAUTH_SECRET={{ stable_secret "linkwarden_nextauth_secret" | replace "\r" "" | replace "\n" "" }}
+      - |-
+        DATABASE_URL=postgresql://postgres:{{ stable_secret "linkwarden_db_password" | replace "\r" "" | replace "\n" "" }}@db:5432/postgres
+      - MEILI_HOST=http://meilisearch:7700
+      - |-
+        MEILI_MASTER_KEY={{ stable_secret "linkwarden_meili_key" | replace "\r" "" | replace "\n" "" }}
+      - STORAGE_FOLDER=/data/data
+      - NEXT_PUBLIC_DISABLE_REGISTRATION=false
+      - TZ=Asia/Shanghai
+    binds:
+      - /lzcapp/var/data:/data/data
+
+usage: |
+  Linkwarden 是协作式书签管理：收藏链接时自动存档网页快照和截图，避免链接失效。
+
+  使用方法：
+  1. 打开应用，第一次访问点注册，创建第一个账号。
+  2. 新建收藏（Collection），往里添加链接；添加时会自动抓取正文和截图存档。
+  3. 用标签和搜索快速找回；也可以把收藏共享给其他成员。
+
+  数据与安全：
+  - 数据库在 PostgreSQL（/lzcapp/var/pgdata），网页存档与上传文件在 /lzcapp/var/data。
+    搜索引擎索引在 /lzcapp/var/meili。卸载应用会一并删除，请定期备份。
+  - 数据库密码、会话密钥和搜索密钥均由平台稳定密钥生成，每个部署不同，不写成固定值。
+  - 本包不预置任何账号或默认口令；第一个账号由你注册创建。
+  - 应用经懒猫入口鉴权访问。
+
+  说明：
+  - 本应用包含三个容器（Linkwarden + PostgreSQL + Meilisearch），启动顺序由依赖关系保证。
+  - 未配置邮件服务，邀请成员、找回密码等依赖邮件的功能不可用。
+  - 保存网页快照需要联网访问目标站点，网络不通时只保存链接本身。
+  - 未做真机验证：注册登录、添加链接、快照存档、检索以及重启后持久化均未在设备上实测。
